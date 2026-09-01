@@ -1,16 +1,11 @@
 {
-  "name": "family-checkin",
+  "name": "family-checkin-photobooth",
   "version": "1.0.0",
+  "description": "Family Check-In Photobooth Application",
   "private": true,
-  "description": "Family Check-In web application for school/event pickup management",
   "scripts": {
-    "dev": "concurrently --names server,client --prefix-colors blue,green \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "postinstall": "npm install --prefix server && npm install --prefix client",
     "build": "npm run build --prefix client",
-    "start": "node server/index.js",
-    "seed-admin": "node server/seed-admin.js",
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
-  },
-  "devDependencies": {
-    "concurrently": "^9.1.0"
+    "start": "npm start --prefix server"
   }
 }
