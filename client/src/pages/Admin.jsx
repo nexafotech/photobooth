@@ -30,6 +30,7 @@ export default function Admin() {
       worksheet.columns = [
         { header: 'ID', key: 'id', width: 10 },
         { header: 'Student Name', key: 'studentName', width: 30 },
+        { header: 'Mobile Number', key: 'mobileNumber', width: 20 },
         { header: 'Date / Time', key: 'createdAt', width: 30 },
         { header: 'Edited Photo', key: 'photo', width: 45 },
       ];
@@ -38,6 +39,7 @@ export default function Admin() {
         const row = worksheet.addRow({
           id: record.id,
           studentName: record.studentName,
+          mobileNumber: record.mobileNumber || '',
           createdAt: new Date(record.createdAt).toLocaleString(),
         });
         
@@ -53,9 +55,9 @@ export default function Admin() {
               extension: 'jpeg',
             });
             
-            // Add image to column D (index 4) for this row
+            // Add image to column E (index 4) for this row
             worksheet.addImage(imageId, {
-              tl: { col: 3, row: row.number - 1 },
+              tl: { col: 4, row: row.number - 1 },
               ext: { width: 160, height: 90 },
             });
           } catch (imgErr) {

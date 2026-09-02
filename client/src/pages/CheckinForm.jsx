@@ -4,6 +4,7 @@ import { addCheckin } from '../lib/db';
 
 export default function CheckinForm() {
   const [studentName, setStudentName] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -79,8 +80,8 @@ export default function CheckinForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!studentName.trim() || !photo) {
-      setError('Please provide both a name and a photo.');
+    if (!studentName.trim() || !mobileNumber.trim() || !photo) {
+      setError('Please provide a name, mobile number, and a photo.');
       return;
     }
 
@@ -92,7 +93,7 @@ export default function CheckinForm() {
       const compositeDataUrl = await createComposite(photo);
       
       // 2. Save to local IndexedDB
-      await addCheckin(studentName, compositeDataUrl);
+      await addCheckin(studentName, mobileNumber, compositeDataUrl);
 
       setPhotoUrl(compositeDataUrl);
       setSuccess(true);
@@ -106,6 +107,7 @@ export default function CheckinForm() {
 
   const handleReset = () => {
     setStudentName('');
+    setMobileNumber('');
     setPhoto(null);
     setPhotoUrl('');
     setSuccess(false);
@@ -166,6 +168,21 @@ export default function CheckinForm() {
               placeholder="Enter Student Name"
               value={studentName}
               onChange={(e) => setStudentName(e.target.value)}
+              required
+              disabled={loading}
+              style={{ marginBottom: '15px' }}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="mobileNumber" className="sr-only" style={{ display: 'none' }}>Mobile Number</label>
+            <input
+              id="mobileNumber"
+              type="tel"
+              className="checkin-input"
+              placeholder="Enter Mobile Number"
+              value={mobileNumber}
+              onChange={(e) => setMobileNumber(e.target.value)}
               required
               disabled={loading}
             />

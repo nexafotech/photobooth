@@ -19,10 +19,11 @@ export const initDB = async () => {
 };
 
 // Add a check-in
-export const addCheckin = async (studentName, photoDataUrl) => {
+export const addCheckin = async (studentName, mobileNumber, photoDataUrl) => {
   const db = await initDB();
   const record = {
     studentName,
+    mobileNumber,
     photoDataUrl,
     createdAt: new Date().toISOString(),
   };
