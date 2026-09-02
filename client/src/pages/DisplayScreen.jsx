@@ -50,7 +50,7 @@ export default function DisplayScreen() {
           <DisplayCard 
             key={checkins[currentIndex].id}
             studentName={checkins[currentIndex].studentName}
-            photoUrl={checkins[currentIndex].photoUrl}
+            photoUrl={checkins[currentIndex].photoDataUrl}
             createdAt={checkins[currentIndex].createdAt}
           />
         )
