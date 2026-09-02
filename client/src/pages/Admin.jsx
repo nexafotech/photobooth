@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../lib/axios';
-import { useAuth } from '../hooks/useAuth';
+import ExcelJS from 'exceljs';
+import { getCheckins, clearCheckins } from '../lib/db';
+// We simulate auth for the completely static version
+// import { useAuth } from '../hooks/useAuth';
 
 export default function Admin() {
-  const { logout } = useAuth();
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
 
   const handleClearAll = async () => {
     try {
-      await api.delete('/api/checkins?confirm=true');
+      await clearCheckins();
       setShowModal(false);
       alert('All records cleared successfully.');
     } catch (err) {
@@ -18,8 +20,66 @@ export default function Admin() {
     }
   };
 
-  const handleExport = () => {
-    window.location.href = '/api/checkins/export';
+  const handleExport = async () => {
+    try {
+      const records = await getCheckins();
+      
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Checkins');
+      
+      worksheet.columns = [
+        { header: 'ID', key: 'id', width: 10 },
+        { header: 'Student Name', key: 'studentName', width: 30 },
+        { header: 'Date / Time', key: 'createdAt', width: 30 },
+        { header: 'Edited Photo', key: 'photo', width: 45 },
+      ];
+      
+      for (const record of records) {
+        const row = worksheet.addRow({
+          id: record.id,
+          studentName: record.studentName,
+          createdAt: new Date(record.createdAt).toLocaleString(),
+        });
+        
+        row.height = 100;
+        
+        if (record.photoDataUrl) {
+          try {
+            // Extract base64
+            const base64Data = record.photoDataUrl.split(',')[1];
+            
+            const imageId = workbook.addImage({
+              base64: base64Data,
+              extension: 'jpeg',
+            });
+            
+            // Add image to column D (index 4) for this row
+            worksheet.addImage(imageId, {
+              tl: { col: 3, row: row.number - 1 },
+              ext: { width: 160, height: 90 },
+            });
+          } catch (imgErr) {
+            console.error('Failed to embed image', imgErr);
+          }
+        }
+      }
+      
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Checkins_Export_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+    } catch (err) {
+      console.error('Export failed', err);
+      alert('Failed to export to Excel.');
+    }
   };
 
   return (
@@ -37,7 +97,6 @@ export default function Admin() {
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
-          {/* Primary Action */}
           <Link 
             to="/display" 
             className="checkin-button" 
@@ -56,7 +115,6 @@ export default function Admin() {
             Launch Display Screen
           </Link>
 
-          {/* Secondary Action */}
           <button 
             className="btn-secondary" 
             onClick={handleExport}
@@ -69,7 +127,6 @@ export default function Admin() {
             Export to Excel
           </button>
 
-          {/* Destructive Action */}
           <button 
             className="btn-danger-outline" 
             onClick={() => setShowModal(true)}
@@ -85,10 +142,10 @@ export default function Admin() {
 
         <div style={{ marginTop: '40px', borderTop: '1px solid #e5e7eb', paddingTop: '20px', textAlign: 'center' }}>
           <button 
-            onClick={logout} 
+            onClick={() => navigate('/')} 
             className="btn-ghost"
           >
-            Sign out
+            Go back to check-in
           </button>
         </div>
       </div>

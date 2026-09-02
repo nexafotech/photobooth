@@ -1,33 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
-import api from '../lib/axios';
+import { useState, useEffect } from 'react';
+import { getCheckins } from '../lib/db';
 
-export function useCheckins(pollInterval = 5000) {
+export function useCheckins() {
   const [checkins, setCheckins] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const previousDataRef = useRef([]);
+  const [error, setError] = useState('');
 
   const fetchCheckins = async () => {
     try {
-      const response = await api.get('/api/checkins');
-      const data = response.data;
-      
-      // Compare by checking lengths and stringified IDs (assuming checkins have an _id or id)
-      // If data has changed, update state, otherwise keep reference stable
-      const prevStr = JSON.stringify(previousDataRef.current.map(c => c.id || c._id));
-      const newStr = JSON.stringify(data.map(c => c.id || c._id));
-      
-      if (prevStr !== newStr) {
-        setCheckins(data);
-        previousDataRef.current = data;
-      }
-      
-      setError(null);
+      setLoading(true);
+      const data = await getCheckins();
+      // Sort by newest first
+      data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      setCheckins(data);
     } catch (err) {
-      // Avoid overwriting generic error on 401 unauth
-      if (err.response?.status !== 401) {
-        setError(err.message || 'Failed to fetch checkins');
-      }
+      setError('Failed to fetch checkins');
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -35,10 +23,21 @@ export function useCheckins(pollInterval = 5000) {
 
   useEffect(() => {
     fetchCheckins();
-    
-    const interval = setInterval(fetchCheckins, pollInterval);
-    return () => clearInterval(interval);
-  }, [pollInterval]);
+
+    // Listen for new checkins from other tabs
+    const channel = new BroadcastChannel('checkins_channel');
+    channel.onmessage = (event) => {
+      if (event.data.type === 'NEW_CHECKIN') {
+        setCheckins((prev) => [...prev, event.data.record]);
+      } else if (event.data.type === 'CLEAR_CHECKINS') {
+        setCheckins([]);
+      }
+    };
+
+    return () => {
+      channel.close();
+    };
+  }, []);
 
   return { checkins, loading, error, refetch: fetchCheckins };
 }

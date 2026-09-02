@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import imageCompression from 'browser-image-compression';
 import PhotoCapture from '../components/PhotoCapture';
-import api from '../lib/axios';
+import { addCheckin } from '../lib/db';
 
 export default function CheckinForm() {
   const [studentName, setStudentName] = useState('');
@@ -10,6 +9,73 @@ export default function CheckinForm() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
+
+  const createComposite = async (userPhotoFile) => {
+    return new Promise((resolve, reject) => {
+      const imgTemplate = new Image();
+      const imgUser = new Image();
+      
+      let loaded = 0;
+      const onLoad = () => {
+        loaded++;
+        if (loaded === 2) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 1600;
+          canvas.height = 900;
+          const ctx = canvas.getContext('2d');
+          
+          // Draw template
+          ctx.drawImage(imgTemplate, 0, 0, 1600, 900);
+          
+          // Calculate object-fit: cover for user photo inside 413, 276, 765, 343
+          const boxW = 765;
+          const boxH = 343;
+          const boxX = 413;
+          const boxY = 276;
+          
+          const imgRatio = imgUser.width / imgUser.height;
+          const boxRatio = boxW / boxH;
+          
+          let drawW = boxW;
+          let drawH = boxH;
+          let drawX = boxX;
+          let drawY = boxY;
+          
+          if (imgRatio > boxRatio) {
+            // Image is wider than box
+            drawH = boxH;
+            drawW = imgUser.width * (boxH / imgUser.height);
+            drawX = boxX - (drawW - boxW) / 2;
+          } else {
+            // Image is taller than box
+            drawW = boxW;
+            drawH = imgUser.height * (boxW / imgUser.width);
+            drawY = boxY - (drawH - boxH) / 2;
+          }
+          
+          // Use clipping to keep photo inside box
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(boxX, boxY, boxW, boxH);
+          ctx.clip();
+          ctx.drawImage(imgUser, drawX, drawY, drawW, drawH);
+          ctx.restore();
+          
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        }
+      };
+
+      imgTemplate.crossOrigin = 'anonymous';
+      imgTemplate.onload = onLoad;
+      imgTemplate.onerror = reject;
+      // Note: adjust base path if deploying to gh-pages subfolder later, but for now absolute from root is fine if base=/
+      imgTemplate.src = (import.meta.env.BASE_URL || '/') + 'temp2.jpeg';
+      
+      imgUser.onload = onLoad;
+      imgUser.onerror = reject;
+      imgUser.src = URL.createObjectURL(userPhotoFile);
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,28 +88,13 @@ export default function CheckinForm() {
     setError('');
 
     try {
-      // 1. Compress image
-      const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1000,
-        useWebWorker: true,
-        fileType: 'image/jpeg',
-        initialQuality: 0.75
-      };
+      // 1. Client-side composite
+      const compositeDataUrl = await createComposite(photo);
       
-      const compressedFile = await imageCompression(photo, options);
-      
-      // 2. Prepare FormData
-      const formData = new FormData();
-      formData.append('studentName', studentName);
-      formData.append('photo', compressedFile, compressedFile.name || 'photo.jpg');
+      // 2. Save to local IndexedDB
+      await addCheckin(studentName, compositeDataUrl);
 
-      // 3. Upload
-      const res = await api.post('/api/checkins', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      setPhotoUrl(res.data.photoUrl);
+      setPhotoUrl(compositeDataUrl);
       setSuccess(true);
     } catch (err) {
       setError('An error occurred during check-in. Please try again.');
@@ -63,18 +114,13 @@ export default function CheckinForm() {
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(photoUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      // Use student name as the download filename
+      a.href = photoUrl;
       const safeName = studentName.trim().replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
       a.download = `${safeName}.jpg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Download failed', err);
     }
@@ -130,7 +176,7 @@ export default function CheckinForm() {
           <button type="submit" className="checkin-button" disabled={loading}>
             {loading ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                <div className="spinner light"></div> Uploading...
+                <div className="spinner light"></div> Processing...
               </div>
             ) : (
               'Submit Check-In'
