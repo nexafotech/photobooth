@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import CheckinForm from './pages/CheckinForm';
 import DisplayScreen from './pages/DisplayScreen';
 import Admin from './pages/Admin';
@@ -7,7 +7,7 @@ import Home from './pages/Home';
 
 function App() {
   return (
-    <Router basename={import.meta.env.BASE_URL}>
+    <Router>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/checkin" element={<CheckinForm />} />
