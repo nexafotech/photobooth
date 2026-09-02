@@ -84,6 +84,11 @@ export default function CheckinForm() {
       setError('Please provide a name, mobile number, and a photo.');
       return;
     }
+    
+    if (mobileNumber.length !== 10) {
+      setError('Mobile number must be exactly 10 digits.');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -182,7 +187,16 @@ export default function CheckinForm() {
               className="checkin-input"
               placeholder="Enter Mobile Number"
               value={mobileNumber}
-              onChange={(e) => setMobileNumber(e.target.value)}
+              onChange={(e) => {
+                // Only allow numbers
+                const val = e.target.value.replace(/\D/g, '');
+                if (val.length <= 10) {
+                  setMobileNumber(val);
+                }
+              }}
+              pattern="[0-9]{10}"
+              maxLength="10"
+              title="Please enter exactly 10 digits"
               required
               disabled={loading}
             />
